@@ -1,451 +1,209 @@
-/**
- * @file demo.c
- *
- */
-
-/*********************
- *      INCLUDES
- *********************/
+#include <stdio.h>
 #include "demo.h"
-#if LV_USE_DEMO
 
-/*********************
- *      DEFINES
- *********************/
+#define LV_TICK_PERIOD_MS 1
 
-/**********************
- *      TYPEDEFS
- **********************/
+enum {
+  LV_MENU_ITEM_BUILDER_VARIANT_1,
+  LV_MENU_ITEM_BUILDER_VARIANT_2
+};
+typedef uint8_t lv_menu_builder_variant_t;
 
-/**********************
- *  STATIC PROTOTYPES
- **********************/
-static void write_create(lv_obj_t * parent);
-static void text_area_event_handler(lv_obj_t * text_area, lv_event_t event);
-static void keyboard_event_cb(lv_obj_t * keyboard, lv_event_t event);
-#if LV_USE_ANIMATION
-static void kb_hide_anim_end(lv_anim_t * a);
-#endif
-static void list_create(lv_obj_t * parent);
-static void chart_create(lv_obj_t * parent);
-static void slider_event_handler(lv_obj_t * slider, lv_event_t event);
-static void list_btn_event_handler(lv_obj_t * slider, lv_event_t event);
-#if LV_DEMO_SLIDE_SHOW
-static void tab_switcher(lv_task_t * task);
-#endif
+static void back_event_handler(lv_event_t* e);
+static void switch_handler(lv_event_t* e);
+lv_obj_t* root_page;
+static lv_obj_t* create_text(lv_obj_t* parent, const char* icon, const char* txt,
+  lv_menu_builder_variant_t builder_variant);
+static lv_obj_t* create_slider(lv_obj_t* parent,
+  const char* icon, const char* txt, int32_t min, int32_t max, int32_t val);
+static lv_obj_t* create_switch(lv_obj_t* parent,
+  const char* icon, const char* txt, bool chk);
 
-/**********************
- *  STATIC VARIABLES
- **********************/
-static lv_obj_t * chart;
-static lv_obj_t * ta;
-static lv_obj_t * kb;
-
-static lv_style_t style_kb;
-
-#if LV_DEMO_WALLPAPER
-LV_IMG_DECLARE(img_bubble_pattern)
-#endif
-
-/**********************
- *      MACROS
- **********************/
-
-/**********************
- *   GLOBAL FUNCTIONS
- **********************/
-
-/**
- * Create a demo application
- */
 void demo_create(void)
 {
-    lv_coord_t hres = lv_disp_get_hor_res(NULL);
-    lv_coord_t vres = lv_disp_get_ver_res(NULL);
+  lv_obj_t* menu = lv_menu_create(lv_scr_act());
 
-#if LV_DEMO_WALLPAPER
-    lv_obj_t * wp = lv_img_create(lv_disp_get_scr_act(NULL), NULL);
-    lv_img_set_src(wp, &img_bubble_pattern);
-    lv_obj_set_width(wp, hres * 4);
-    lv_obj_add_protect(wp, LV_PROTECT_POS);
-#endif
+  lv_color_t bg_color = lv_obj_get_style_bg_color(menu, 0);
+  if (lv_color_brightness(bg_color) > 127) {
+    lv_obj_set_style_bg_color(menu, lv_color_darken(lv_obj_get_style_bg_color(menu, 0), 10), 0);
+  }
+  else {
+    lv_obj_set_style_bg_color(menu, lv_color_darken(lv_obj_get_style_bg_color(menu, 0), 50), 0);
+  }
+  lv_menu_set_mode_root_back_btn(menu, LV_MENU_ROOT_BACK_BTN_ENABLED);
+  lv_obj_add_event_cb(menu, back_event_handler, LV_EVENT_CLICKED, menu);
+  lv_obj_set_size(menu, lv_disp_get_hor_res(NULL), lv_disp_get_ver_res(NULL));
+  lv_obj_center(menu);
 
-    static lv_style_t style_tv_btn;
-    lv_style_init(&style_tv_btn);
-    lv_style_set_bg_color(&style_tv_btn, LV_STATE_DEFAULT, lv_color_hex(0x487fb7));
-    lv_style_set_bg_grad_color(&style_tv_btn, LV_STATE_DEFAULT, lv_color_hex(0x487fb7));
-    lv_style_set_pad_top(&style_tv_btn, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_bottom(&style_tv_btn, LV_STATE_DEFAULT, 0);
-    lv_style_set_bg_opa(&style_tv_btn, LV_BTN_STATE_RELEASED, LV_OPA_TRANSP);
-    lv_style_set_border_width(&style_tv_btn, LV_BTN_STATE_RELEASED, 0);
-    lv_style_set_radius(&style_tv_btn, LV_BTN_STATE_PRESSED, 0);
-    lv_style_set_bg_opa(&style_tv_btn, LV_BTN_STATE_PRESSED, LV_OPA_50);
-    lv_style_set_bg_color(&style_tv_btn, LV_BTN_STATE_PRESSED, LV_COLOR_WHITE);
-    lv_style_set_bg_grad_color(&style_tv_btn, LV_BTN_STATE_PRESSED, LV_COLOR_WHITE);
-    lv_style_set_border_width(&style_tv_btn, LV_BTN_STATE_PRESSED, 0);
-    lv_style_set_text_color(&style_tv_btn, LV_BTN_STATE_PRESSED, LV_COLOR_GRAY);
+  lv_obj_t* cont;
+  lv_obj_t* section;
 
-    lv_obj_t * tv = lv_tabview_create(lv_scr_act(), NULL);
-    lv_obj_set_size(tv, hres, vres);
+  /*Create sub pages*/
+  lv_obj_t* sub_mechanics_page = lv_menu_page_create(menu, NULL);
+  lv_obj_set_style_pad_hor(sub_mechanics_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+  lv_menu_separator_create(sub_mechanics_page);
+  section = lv_menu_section_create(sub_mechanics_page);
+  create_slider(section, LV_SYMBOL_SETTINGS, "Velocity", 0, 150, 120);
+  create_slider(section, LV_SYMBOL_SETTINGS, "Acceleration", 0, 150, 50);
+  create_slider(section, LV_SYMBOL_SETTINGS, "Weight limit", 0, 150, 80);
 
-#if LV_DEMO_WALLPAPER
-    lv_obj_set_parent(wp, ((lv_tabview_ext_t *) tv->ext_attr)->content);
-    lv_obj_set_pos(wp, 0, -5);
-#endif
+  lv_obj_t* sub_sound_page = lv_menu_page_create(menu, NULL);
+  lv_obj_set_style_pad_hor(sub_sound_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+  lv_menu_separator_create(sub_sound_page);
+  section = lv_menu_section_create(sub_sound_page);
+  create_switch(section, LV_SYMBOL_AUDIO, "Sound", false);
 
-    lv_obj_t * tab1 = lv_tabview_add_tab(tv, "Write");
-    lv_obj_t * tab2 = lv_tabview_add_tab(tv, "List");
-    lv_obj_t * tab3 = lv_tabview_add_tab(tv, "Chart");
+  lv_obj_t* sub_display_page = lv_menu_page_create(menu, NULL);
+  lv_obj_set_style_pad_hor(sub_display_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+  lv_menu_separator_create(sub_display_page);
+  section = lv_menu_section_create(sub_display_page);
+  create_slider(section, LV_SYMBOL_SETTINGS, "Brightness", 0, 150, 100);
 
-#if LV_DEMO_WALLPAPER == 0
-    /*Blue bg instead of wallpaper*/
-    lv_tabview_set_style(tv, LV_TABVIEW_STYLE_BG, &style_tv_btn_bg);
-#endif
+  lv_obj_t* sub_software_info_page = lv_menu_page_create(menu, NULL);
+  lv_obj_set_style_pad_hor(sub_software_info_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+  section = lv_menu_section_create(sub_software_info_page);
+  create_text(section, NULL, "Version 1.0", LV_MENU_ITEM_BUILDER_VARIANT_1);
 
-    lv_obj_add_style(tv, LV_TABVIEW_PART_TAB_BTN, &style_tv_btn);
+  lv_obj_t* sub_legal_info_page = lv_menu_page_create(menu, NULL);
+  lv_obj_set_style_pad_hor(sub_legal_info_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+  section = lv_menu_section_create(sub_legal_info_page);
+  for (uint32_t i = 0; i < 15; i++) {
+    create_text(section, NULL, "This is a long long long long long long long long long text, if it is long enough it may scroll.", LV_MENU_ITEM_BUILDER_VARIANT_1);
+  }
 
-    write_create(tab1);
-    list_create(tab2);
-    chart_create(tab3);
+  lv_obj_t* sub_about_page = lv_menu_page_create(menu, NULL);
+  lv_obj_set_style_pad_hor(sub_about_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+  lv_menu_separator_create(sub_about_page);
+  section = lv_menu_section_create(sub_about_page);
+  cont = create_text(section, NULL, "Software information", LV_MENU_ITEM_BUILDER_VARIANT_1);
+  lv_menu_set_load_page_event(menu, cont, sub_software_info_page);
+  cont = create_text(section, NULL, "Legal information", LV_MENU_ITEM_BUILDER_VARIANT_1);
+  lv_menu_set_load_page_event(menu, cont, sub_legal_info_page);
 
-#if LV_DEMO_SLIDE_SHOW
-    lv_task_create(tab_switcher, 3000, LV_TASK_PRIO_MID, tv);
-#endif
+  lv_obj_t* sub_menu_mode_page = lv_menu_page_create(menu, NULL);
+  lv_obj_set_style_pad_hor(sub_menu_mode_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+  lv_menu_separator_create(sub_menu_mode_page);
+  section = lv_menu_section_create(sub_menu_mode_page);
+  cont = create_switch(section, LV_SYMBOL_AUDIO, "Sidebar enable", true);
+  lv_obj_add_event_cb(lv_obj_get_child(cont, 2), switch_handler, LV_EVENT_VALUE_CHANGED, menu);
+
+  /*Create a root page*/
+  root_page = lv_menu_page_create(menu, "Settings");
+  lv_obj_set_style_pad_hor(root_page, lv_obj_get_style_pad_left(lv_menu_get_main_header(menu), 0), 0);
+  section = lv_menu_section_create(root_page);
+  cont = create_text(section, LV_SYMBOL_SETTINGS, "Mechanics", LV_MENU_ITEM_BUILDER_VARIANT_1);
+  lv_menu_set_load_page_event(menu, cont, sub_mechanics_page);
+  cont = create_text(section, LV_SYMBOL_AUDIO, "Sound", LV_MENU_ITEM_BUILDER_VARIANT_1);
+  lv_menu_set_load_page_event(menu, cont, sub_sound_page);
+  cont = create_text(section, LV_SYMBOL_SETTINGS, "Display", LV_MENU_ITEM_BUILDER_VARIANT_1);
+  lv_menu_set_load_page_event(menu, cont, sub_display_page);
+
+  create_text(root_page, NULL, "Others", LV_MENU_ITEM_BUILDER_VARIANT_1);
+  section = lv_menu_section_create(root_page);
+  cont = create_text(section, NULL, "About", LV_MENU_ITEM_BUILDER_VARIANT_1);
+  lv_menu_set_load_page_event(menu, cont, sub_about_page);
+  cont = create_text(section, LV_SYMBOL_SETTINGS, "Menu mode", LV_MENU_ITEM_BUILDER_VARIANT_1);
+  lv_menu_set_load_page_event(menu, cont, sub_menu_mode_page);
+
+  lv_menu_set_sidebar_page(menu, root_page);
+
+  lv_event_send(lv_obj_get_child(lv_obj_get_child(lv_menu_get_cur_sidebar_page(menu), 0), 0), LV_EVENT_CLICKED, NULL);
 }
 
-
-/**********************
- *   STATIC FUNCTIONS
- **********************/
-
-static void write_create(lv_obj_t * parent)
+static void back_event_handler(lv_event_t* e)
 {
-    // lv_page_set_style(parent, LV_PAGE_STYLE_BG, &lv_style_transp_fit);
-    // lv_page_set_style(parent, LV_PAGE_STYLE_SCRL, &lv_style_transp_fit);
+  lv_obj_t* obj = lv_event_get_target(e);
+  lv_obj_t* menu = (lv_obj_t*)lv_event_get_user_data(e);
 
-    lv_page_set_scrollbar_mode(parent, LV_SCROLLBAR_MODE_OFF);
-
-    static lv_style_t style_ta;
-    lv_style_init(&style_ta);
-    lv_style_set_bg_opa(&style_ta, LV_STATE_DEFAULT, LV_OPA_30);
-    lv_style_set_radius(&style_ta, LV_STATE_DEFAULT, 0);
-    lv_style_set_text_color(&style_ta, LV_STATE_DEFAULT, lv_color_hex3(0x222));
-
-    ta = lv_textarea_create(parent, NULL);
-    lv_obj_set_size(ta, lv_page_get_scrl_width(parent), lv_obj_get_height(parent) / 2);
-    lv_obj_add_style(ta, LV_TEXTAREA_PART_BG, &style_ta);
-    lv_textarea_set_text(ta, "");
-    lv_obj_set_event_cb(ta, text_area_event_handler);
-    lv_textarea_set_text_sel(ta, true);
-
-    lv_style_init(&style_kb);
-    lv_style_set_bg_opa(&style_kb, LV_STATE_DEFAULT, LV_OPA_70);
-    lv_style_set_bg_color(&style_kb, LV_STATE_DEFAULT, lv_color_hex3(0x333));
-    lv_style_set_bg_grad_color(&style_kb, LV_STATE_DEFAULT, lv_color_hex3(0x333));
-    lv_style_set_pad_left(&style_kb, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_right(&style_kb, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_top(&style_kb, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_bottom(&style_kb, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_inner(&style_kb, LV_STATE_DEFAULT, 0);
-
-    lv_style_set_bg_opa(&style_kb, LV_BTN_STATE_RELEASED, LV_OPA_70);
-    lv_style_set_radius(&style_kb, LV_BTN_STATE_RELEASED, 0);
-    lv_style_set_border_width(&style_kb, LV_BTN_STATE_RELEASED, 1);
-    lv_style_set_border_color(&style_kb, LV_BTN_STATE_RELEASED, LV_COLOR_SILVER);
-    lv_style_set_border_opa(&style_kb, LV_BTN_STATE_RELEASED, LV_OPA_50);
-    lv_style_set_bg_color(&style_kb, LV_BTN_STATE_RELEASED, lv_color_hex3(0x333));
-    lv_style_set_bg_grad_color(&style_kb, LV_BTN_STATE_RELEASED, lv_color_hex3(0x333));
-    lv_style_set_text_color(&style_kb, LV_BTN_STATE_RELEASED, LV_COLOR_WHITE);
-
-    lv_style_set_radius(&style_kb, LV_BTN_STATE_PRESSED, 0);
-    lv_style_set_bg_opa(&style_kb, LV_BTN_STATE_PRESSED, LV_OPA_50);
-    lv_style_set_bg_color(&style_kb, LV_BTN_STATE_PRESSED, LV_COLOR_WHITE);
-    lv_style_set_bg_grad_color(&style_kb, LV_BTN_STATE_PRESSED, LV_COLOR_WHITE);
-    lv_style_set_border_width(&style_kb, LV_BTN_STATE_PRESSED, 1);
-    lv_style_set_border_color(&style_kb, LV_BTN_STATE_PRESSED, LV_COLOR_SILVER);
-
+  if (lv_menu_back_btn_is_root(menu, obj))
+  {
+    lv_obj_t* mbox1 = lv_msgbox_create(NULL, "Hello", "Root back btn click.", NULL, true);
+    lv_obj_center(mbox1);
+  }
 }
 
-static void text_area_event_handler(lv_obj_t * text_area, lv_event_t event)
+static void switch_handler(lv_event_t* e)
 {
-    (void) text_area;    /*Unused*/
-
-    /*Text area is on the scrollable part of the page but we need the page itself*/
-    lv_obj_t * parent = lv_obj_get_parent(lv_obj_get_parent(ta));
-
-    if(event == LV_EVENT_CLICKED) {
-        if(kb == NULL) {
-            kb = lv_keyboard_create(parent, NULL);
-            lv_obj_set_size(kb, lv_obj_get_width_fit(parent), lv_obj_get_height_fit(parent) / 2);
-            lv_obj_align(kb, ta, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
-            lv_keyboard_set_textarea(kb, ta);
-            lv_obj_add_style(kb, LV_KEYBOARD_PART_BG, &style_kb);
-            lv_obj_add_style(kb, LV_KEYBOARD_PART_BTN, &style_kb);
-            lv_obj_set_event_cb(kb, keyboard_event_cb);
-
-#if LV_USE_ANIMATION
-            lv_anim_t a;
-            lv_anim_init(&a);
-            lv_anim_set_var(&a, kb);
-            lv_anim_set_time(&a, 300);
-            lv_anim_set_values(&a, LV_VER_RES, lv_obj_get_y(kb));
-            lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
-            lv_anim_set_ready_cb(&a, NULL);
-            lv_anim_start(&a);
-#endif
-        }
+  lv_event_code_t code = lv_event_get_code(e);
+  lv_obj_t* menu = (lv_obj_t*)lv_event_get_user_data(e);
+  lv_obj_t* obj = lv_event_get_target(e);
+  if (code == LV_EVENT_VALUE_CHANGED)
+  {
+    if (lv_obj_has_state(obj, LV_STATE_CHECKED))
+    {
+      lv_menu_set_page(menu, NULL);
+      lv_menu_set_sidebar_page(menu, root_page);
+      lv_event_send(lv_obj_get_child(lv_obj_get_child(lv_menu_get_cur_sidebar_page(menu), 0), 0), LV_EVENT_CLICKED, NULL);
     }
-
-}
-
-/**
- * Called when the close or ok button is pressed on the keyboard
- * @param keyboard pointer to the keyboard
- * @return
- */
-static void keyboard_event_cb(lv_obj_t * keyboard, lv_event_t event)
-{
-    (void) keyboard;    /*Unused*/
-
-    lv_keyboard_def_event_cb(kb, event);
-
-    if(event == LV_EVENT_APPLY || event == LV_EVENT_CANCEL) {
-#if LV_USE_ANIMATION
-        lv_anim_t a;
-        lv_anim_init(&a);
-        lv_anim_set_var(&a, kb);
-        lv_anim_set_time(&a, 300);
-        lv_anim_set_values(&a, LV_VER_RES, lv_obj_get_y(kb));
-        lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
-        lv_anim_set_ready_cb(&a, NULL);
-        lv_anim_start(&a);
-#else
-        lv_obj_del(kb);
-        kb = NULL;
-#endif
+    else
+    {
+      lv_menu_set_sidebar_page(menu, NULL);
+      lv_menu_clear_history(menu); /* Clear history because we will be showing the root page later */
+      lv_menu_set_page(menu, root_page);
     }
+  }
 }
 
-static void list_create(lv_obj_t * parent)
+static lv_obj_t* create_text(lv_obj_t* parent, const char* icon, const char* txt,
+  lv_menu_builder_variant_t builder_variant)
 {
-    lv_coord_t hres = lv_disp_get_hor_res(NULL);
+  lv_obj_t* obj = lv_menu_cont_create(parent);
 
-    static lv_style_t style_page;
-    lv_style_init(&style_page);
+  lv_obj_t* img = NULL;
+  lv_obj_t* label = NULL;
 
-    lv_style_set_bg_opa(&style_page, LV_STATE_DEFAULT, LV_OPA_100);
-    lv_style_set_pad_top(&style_page, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_bottom(&style_page, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_left(&style_page, LV_STATE_DEFAULT, 5);
-    lv_style_set_pad_right(&style_page, LV_STATE_DEFAULT, 5);
+  if (icon)
+  {
+    img = lv_img_create(obj);
+    lv_img_set_src(img, icon);
+  }
 
-    lv_obj_add_style(parent, LV_PAGE_PART_BG, &style_page);
-    lv_obj_add_style(parent, LV_PAGE_PART_SCROLLABLE, &style_page);
+  if (txt)
+  {
+    label = lv_label_create(obj);
+    lv_label_set_text(label, txt);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_set_flex_grow(label, 1);
+  }
 
-    lv_page_set_scrollbar_mode(parent, LV_SCROLLBAR_MODE_OFF);
+  if (builder_variant == LV_MENU_ITEM_BUILDER_VARIANT_2 && icon && txt) {
+    lv_obj_add_flag(img, LV_OBJ_FLAG_FLEX_IN_NEW_TRACK);
+    lv_obj_swap(img, label);
+  }
 
-    /*Create styles for the buttons*/
-    static lv_style_t style_btn;
-    lv_style_init(&style_btn);
-
-    lv_style_set_bg_color(&style_btn, LV_BTN_STATE_RELEASED, lv_color_hex3(0x333));
-    lv_style_set_bg_grad_color(&style_btn, LV_BTN_STATE_RELEASED, LV_COLOR_BLACK);
-    lv_style_set_border_color(&style_btn, LV_BTN_STATE_RELEASED, LV_COLOR_SILVER);
-    lv_style_set_border_width(&style_btn, LV_BTN_STATE_RELEASED, 1);
-    lv_style_set_border_opa(&style_btn, LV_BTN_STATE_RELEASED, LV_OPA_50);
-    lv_style_set_radius(&style_btn, LV_BTN_STATE_RELEASED, 0);
-
-    lv_style_set_bg_color(&style_btn, LV_BTN_STATE_PRESSED, lv_color_make(0x55, 0x96, 0xd8));
-    lv_style_set_bg_grad_color(&style_btn, LV_BTN_STATE_PRESSED, lv_color_make(0x37, 0x62, 0x90));
-    lv_style_set_text_color(&style_btn, LV_BTN_STATE_PRESSED, lv_color_make(0xbb, 0xd5, 0xf1));
-
-    lv_obj_t * list = lv_list_create(parent, NULL);
-    lv_obj_set_height(list, 2 * lv_obj_get_height(parent) / 3);
-
-    static lv_style_t style_list;
-    lv_style_init(&style_list);
-    lv_style_set_bg_opa(&style_list, LV_STATE_DEFAULT, LV_OPA_100);
-    lv_style_set_pad_left(&style_list, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_right(&style_list, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_top(&style_list, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_bottom(&style_list, LV_STATE_DEFAULT, 0);
-
-    lv_obj_add_style(list, LV_LIST_PART_BG, &style_list);
-    lv_obj_add_style(list, LV_LIST_PART_SCROLLABLE, &style_list);
-
-    lv_obj_align(list, NULL, LV_ALIGN_IN_TOP_MID, 0, LV_DPI / 4);
-
-    lv_obj_t * list_btn;
-    list_btn = lv_list_add_btn(list, LV_SYMBOL_FILE, "New");
-    lv_obj_set_event_cb(list_btn, list_btn_event_handler);
-
-    list_btn = lv_list_add_btn(list, LV_SYMBOL_DIRECTORY, "Open");
-    lv_obj_set_event_cb(list_btn, list_btn_event_handler);
-
-    list_btn = lv_list_add_btn(list, LV_SYMBOL_TRASH, "Delete");
-    lv_obj_set_event_cb(list_btn, list_btn_event_handler);
-
-    list_btn = lv_list_add_btn(list, LV_SYMBOL_EDIT, "Edit");
-    lv_obj_set_event_cb(list_btn, list_btn_event_handler);
-
-    list_btn = lv_list_add_btn(list, LV_SYMBOL_SAVE, "Save");
-    lv_obj_set_event_cb(list_btn, list_btn_event_handler);
-
-    list_btn = lv_list_add_btn(list, LV_SYMBOL_WIFI, "WiFi");
-    lv_obj_set_event_cb(list_btn, list_btn_event_handler);
-
-    list_btn = lv_list_add_btn(list, LV_SYMBOL_GPS, "GPS");
-    lv_obj_set_event_cb(list_btn, list_btn_event_handler);
-
-    lv_obj_t * mbox = lv_msgbox_create(parent, NULL);
-    lv_msgbox_set_text(mbox, "Click a button to copy its text to the Text area ");
-    lv_obj_set_width(mbox, hres - LV_DPI);
-    static const char * mbox_btns[] = {"Got it", ""};
-    lv_msgbox_add_btns(mbox, mbox_btns);    /*The default action is close*/
-    lv_obj_align(mbox, parent, LV_ALIGN_IN_TOP_MID, 0, LV_DPI / 2);
+  return obj;
 }
 
-#if LV_USE_ANIMATION
-static void kb_hide_anim_end(lv_anim_t * a)
+static lv_obj_t* create_slider(lv_obj_t* parent, const char* icon, const char* txt, int32_t min, int32_t max, int32_t val)
 {
-    lv_obj_del(a->var);
-    kb = NULL;
-}
-#endif
+  lv_obj_t* obj = create_text(parent, icon, txt, LV_MENU_ITEM_BUILDER_VARIANT_2);
 
-static void chart_create(lv_obj_t * parent)
+  lv_obj_t* slider = lv_slider_create(obj);
+  lv_obj_set_flex_grow(slider, 1);
+  lv_slider_set_range(slider, min, max);
+  lv_slider_set_value(slider, val, LV_ANIM_OFF);
+
+  if (icon == NULL)
+  {
+    lv_obj_add_flag(slider, LV_OBJ_FLAG_FLEX_IN_NEW_TRACK);
+  }
+
+  return obj;
+}
+
+static lv_obj_t* create_switch(lv_obj_t* parent, const char* icon, const char* txt, bool chk)
 {
+  lv_obj_t* obj = create_text(parent, icon, txt, LV_MENU_ITEM_BUILDER_VARIANT_1);
 
-    lv_coord_t vres = lv_disp_get_ver_res(NULL);
+  lv_obj_t* sw = lv_switch_create(obj);
+  lv_obj_add_state(sw, chk ? LV_STATE_CHECKED : 0);
 
-    static lv_style_t style_page;
-    lv_style_init(&style_page);
-
-    lv_style_set_bg_opa(&style_page, LV_STATE_DEFAULT, LV_OPA_100);
-    lv_style_set_pad_top(&style_page, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_bottom(&style_page, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_left(&style_page, LV_STATE_DEFAULT, 5);
-    lv_style_set_pad_right(&style_page, LV_STATE_DEFAULT, 5);
-
-    lv_obj_add_style(parent, LV_PAGE_PART_BG, &style_page);
-    lv_obj_add_style(parent, LV_PAGE_PART_SCROLLABLE, &style_page);
-
-    lv_page_set_scrl_height(parent, lv_obj_get_height(parent));
-    lv_page_set_scrollbar_mode(parent, LV_SCROLLBAR_MODE_OFF);
-
-    static lv_style_t style_chart;
-    lv_style_init(&style_chart);
-    lv_style_set_bg_opa(&style_chart, LV_STATE_DEFAULT, LV_OPA_60);
-    lv_style_set_radius(&style_chart, LV_STATE_DEFAULT, 0);
-    lv_style_set_line_color(&style_chart, LV_STATE_DEFAULT, LV_COLOR_GRAY);
-    lv_style_set_line_opa(&style_chart, LV_STATE_DEFAULT, LV_OPA_70);
-
-    chart = lv_chart_create(parent, NULL);
-    lv_obj_set_size(chart, 2 * lv_obj_get_width(parent) / 3, lv_obj_get_height(parent) / 2);
-    lv_obj_align(chart, NULL,  LV_ALIGN_IN_TOP_MID, 0, LV_DPI / 4);
-    lv_chart_set_type(chart, LV_CHART_TYPE_COLUMN);
-    lv_obj_add_style(chart, LV_CHART_PART_BG, &style_chart);
-    lv_obj_add_style(chart, LV_CHART_PART_SERIES, &style_chart);
-    
-    lv_chart_series_t * ser1;
-    ser1 = lv_chart_add_series(chart, LV_COLOR_RED);
-    lv_chart_set_next(chart, ser1, 40);
-    lv_chart_set_next(chart, ser1, 30);
-    lv_chart_set_next(chart, ser1, 47);
-    lv_chart_set_next(chart, ser1, 59);
-    lv_chart_set_next(chart, ser1, 59);
-    lv_chart_set_next(chart, ser1, 31);
-    lv_chart_set_next(chart, ser1, 55);
-    lv_chart_set_next(chart, ser1, 70);
-    lv_chart_set_next(chart, ser1, 82);
-    lv_chart_set_next(chart, ser1, 91);
-
-    /*Create a bar, an indicator and a knob style*/
-    static lv_style_t style_bar;
-    static lv_style_t style_indic;
-    static lv_style_t style_knob;
-
-    lv_style_init(&style_bar);
-    lv_style_set_bg_color(&style_bar, LV_STATE_DEFAULT, LV_COLOR_BLACK);
-    lv_style_set_bg_grad_color(&style_bar, LV_STATE_DEFAULT, LV_COLOR_GRAY);
-    lv_style_set_radius(&style_bar, LV_STATE_DEFAULT, LV_RADIUS_CIRCLE);
-    lv_style_set_border_color(&style_bar, LV_STATE_DEFAULT, LV_COLOR_WHITE);
-    lv_style_set_bg_opa(&style_bar, LV_STATE_DEFAULT, LV_OPA_60);
-    lv_style_set_pad_left(&style_bar, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_right(&style_bar, LV_STATE_DEFAULT, 0);
-    lv_style_set_pad_top(&style_bar, LV_STATE_DEFAULT, LV_DPI / 10);
-    lv_style_set_pad_bottom(&style_bar, LV_STATE_DEFAULT, LV_DPI / 10);
-
-    lv_style_init(&style_indic);
-    lv_style_set_bg_color(&style_indic, LV_STATE_DEFAULT, LV_COLOR_RED);
-    lv_style_set_bg_grad_color(&style_indic, LV_STATE_DEFAULT, LV_COLOR_MAROON);
-    lv_style_set_radius(&style_indic, LV_STATE_DEFAULT, LV_RADIUS_CIRCLE);
-    lv_style_set_shadow_width(&style_indic, LV_STATE_DEFAULT,  LV_DPI / 10);
-    lv_style_set_shadow_color(&style_indic, LV_STATE_DEFAULT, LV_COLOR_RED);
-    lv_style_set_pad_left(&style_indic, LV_STATE_DEFAULT, LV_DPI / 30);
-    lv_style_set_pad_right(&style_indic, LV_STATE_DEFAULT, LV_DPI / 30);
-    lv_style_set_pad_top(&style_indic, LV_STATE_DEFAULT, LV_DPI / 30);
-    lv_style_set_pad_bottom(&style_indic, LV_STATE_DEFAULT, LV_DPI / 30);
-
-    lv_style_init(&style_knob);
-    lv_style_set_radius(&style_knob, LV_STATE_DEFAULT, LV_RADIUS_CIRCLE);
-    lv_style_set_bg_opa(&style_knob, LV_STATE_DEFAULT, LV_OPA_70);
-
-    /*Create a second slider*/
-    lv_obj_t * slider = lv_slider_create(parent, NULL);
-    lv_obj_add_style(slider, LV_SLIDER_PART_BG, &style_bar);
-    lv_obj_add_style(slider, LV_SLIDER_PART_INDIC, &style_indic);
-    lv_obj_add_style(slider, LV_SLIDER_PART_KNOB, &style_knob);
-    lv_obj_set_size(slider, lv_obj_get_width(chart), LV_DPI / 3);
-    lv_obj_align(slider, chart, LV_ALIGN_OUT_BOTTOM_MID, 0, (vres - chart->coords.y2 - lv_obj_get_height(slider)) / 2); /*Align to below the chart*/
-    lv_obj_set_event_cb(slider, slider_event_handler);
-    lv_slider_set_range(slider, 10, 1000);
-    lv_slider_set_value(slider, 700, false);
-    slider_event_handler(slider, LV_EVENT_VALUE_CHANGED);          /*Simulate a user value set the refresh the chart*/
+  return obj;
 }
 
-/**
- * Called when a new value on the slider on the Chart tab is set
- * @param slider pointer to the slider
- * @return LV_RES_OK because the slider is not deleted in the function
- */
-static void slider_event_handler(lv_obj_t * slider, lv_event_t event)
+static void lv_tick_task(void* arg)
 {
-
-    if(event == LV_EVENT_VALUE_CHANGED) {
-        int16_t v = lv_slider_get_value(slider);
-        v = 1000 * 100 / v; /*Convert to range modify values linearly*/
-        lv_chart_set_range(chart, 0, v);
-    }
+  (void)arg;
+  lv_tick_inc(LV_TICK_PERIOD_MS);
 }
 
-/**
- * Called when a a list button is clicked on the List tab
- * @param btn pointer to a list button
- * @return LV_RES_OK because the button is not deleted in the function
- */
-static void list_btn_event_handler(lv_obj_t * btn, lv_event_t event)
-{
-
-    if(event == LV_EVENT_SHORT_CLICKED) {
-        lv_textarea_add_char(ta, '\n');
-        lv_textarea_add_text(ta, lv_list_get_btn_text(btn));
-    }
-}
-
-#if LV_DEMO_SLIDE_SHOW
-/**
- * Called periodically (lv_task) to switch to the next tab
- */
-static void tab_switcher(lv_task_t * task)
-{
-    static uint8_t tab = 0;
-    lv_obj_t * tv = task->user_data;
-    tab++;
-    if(tab >= 3) tab = 0;
-    lv_tabview_set_tab_act(tv, tab, true);
-}
-#endif
-
-
-#endif  /*LV_USE_DEMO*/
