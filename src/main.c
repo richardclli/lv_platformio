@@ -13,6 +13,7 @@
 #include "app_hal.h"
 
 #include "demo.h"
+#include "demo2.h"
 
 int main(void)
 {
@@ -21,6 +22,8 @@ int main(void)
 	hal_setup();
 
 	demo_create();
-
-	hal_loop();
+//	demo2_create();
+//  lv_example_menu_3();
+	
+  hal_loop();
 }
